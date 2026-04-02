@@ -1,7 +1,7 @@
 # 显式列出所有源文件（告别 GLOB 缓存 Bug）
 set(src_files 
     "main.cpp" 
-    "board/cores3_audio_codec.cc"
+    # "board/cores3_audio_codec.cc"
     # 如果你 main 目录下还有其他的 .cpp/.c 文件，请依次添加在这里
     # 例如："ui/SmileAvatar.cpp"
 )

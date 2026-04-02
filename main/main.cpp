@@ -10,11 +10,18 @@
 #include "bsp/touch.h"
 // 引入我们刚写的网络模块
 #include "network/WifiManager.hpp"
-#include "cores3_audio_codec.h" // 引入你刚才展示的头文件
-#include "driver/i2c.h"
+
+// 替换为这一行
+#include "driver/i2c_master.h"
+#include "esp_heap_caps.h" // 引入高级内存分配器
 
 static SmileAvatar* my_avatar = nullptr;
 
+// 声明全局的扬声器和麦克风设备句柄
+esp_codec_dev_handle_t spk_codec_dev = NULL;
+esp_codec_dev_handle_t mic_codec_dev = NULL;
+
+#define AUDIO_BUFFER_SIZE 1024
 
 // 触摸点击事件回调 (由 LVGL 内部线程调用，不需要加锁)
 static void avatar_event_cb(lv_event_t * e) {
@@ -57,89 +64,95 @@ static void wifi_monitor_task(void *arg) {
     // 任务完成，自我销毁
     vTaskDelete(NULL);
 }
+static const char *TAG = "AUDIO_TEST"; // 定义 Log 标签
 
-// 假设每次处理 1024 个采样点
-#define SAMPLES_PER_CHUNK 1024
-
-// 定义全局指针，方便 Task 访问
-CoreS3AudioCodec* audio_codec = nullptr;
-
+#define RECORD_TIME_SEC 2
+#define RECORD_BUFFER_SIZE (16000 * 2 * 1 * RECORD_TIME_SEC)
 void audio_loopback_task(void *pvParameters)
 {
-    // 因为是 16bit 音频，所以 buffer 使用 int16_t 类型
-    int16_t *audio_buffer = (int16_t *)malloc(SAMPLES_PER_CHUNK * sizeof(int16_t));
+    ESP_LOGI(TAG, "==> 进入【对讲机模式】音频 Task");
+
+    // ==========================================
+    // 🌟 核心魔法：使用 heap_caps_malloc 强制从 8MB 的外部 PSRAM 借用内存！
+    // 别说 64KB，在这里借 1MB 都轻轻松松！
+    // ==========================================
+    uint8_t *tape_buffer = (uint8_t *)heap_caps_malloc(RECORD_BUFFER_SIZE, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
     
-    while (1) {
-        // 1. 从麦克风读取数据 (调用 StackChain 封装的 Read)
-        int samples_read = audio_codec->Read(audio_buffer, SAMPLES_PER_CHUNK);
-        
-        if (samples_read > 0) {
-            // 2. 将数据直接写入扬声器 (调用 StackChain 封装的 Write)
-            audio_codec->Write(audio_buffer, samples_read);
+    if (tape_buffer == NULL) {
+        // 如果连外挂内存都失败了（极小概率），那就降级，只录 0.5 秒
+        ESP_LOGE(TAG, "PSRAM 内存分配失败！尝试降级申请内部内存...");
+        tape_buffer = (uint8_t *)malloc(16000 * 2 * 1 * 0.5); // 16KB
+        if (tape_buffer == NULL) {
+             ESP_LOGE(TAG, "彻底没内存了！");
+             vTaskDelete(NULL);
         }
+    }
+
+    while (1) {
+        // ... 下面的录音和播放逻辑保持完全不变 ...
+        ESP_LOGW(TAG, "🎤 [录音中...] 请对着麦克风说话 (2秒)...");
+        esp_codec_dev_set_out_vol(spk_codec_dev, 0); 
         
-        // 防止看门狗超时
-        vTaskDelay(pdMS_TO_TICKS(10)); 
+        esp_err_t read_res = esp_codec_dev_read(mic_codec_dev, (void*)tape_buffer, RECORD_BUFFER_SIZE);
+        
+        if (read_res == ESP_OK) {
+            ESP_LOGI(TAG, "🔊 [播放中...] 正在回放刚才的声音...");
+            esp_codec_dev_set_out_vol(spk_codec_dev, 80); 
+            esp_codec_dev_write(spk_codec_dev, (void*)tape_buffer, RECORD_BUFFER_SIZE);
+            vTaskDelay(pdMS_TO_TICKS(500)); 
+        } else {
+            ESP_LOGE(TAG, "读取麦克风失败!");
+            vTaskDelay(pdMS_TO_TICKS(1000));
+        }
     }
 }
 
 extern "C" void app_main(void) {
-// 1. 一键初始化显示屏、触摸屏并启动 LVGL 后台任务！
+    // 1. 一键初始化显示屏、触摸屏并启动 LVGL 后台任务！
     bsp_display_start();
-
-// 2. 打开屏幕背光 (非常重要，否则黑屏)
     bsp_display_backlight_on();
-// 3. 获取 LVGL 多线程锁 (0 表示无限等待)
-    // 在主任务中操作 LVGL 对象，必须被 Lock/Unlock 包裹
-    bsp_display_lock(0);
-// 1. 初始化全局 I2C 主机 (CoreS3 内部总线，通常是 GPIO11/12)
-    // 注意：这里需要根据你的实际 I2C 初始化代码来配置
-    i2c_config_t i2c_conf = {
-        .mode = I2C_MODE_MASTER,
-        .sda_io_num = GPIO_NUM_12,
-        .scl_io_num = GPIO_NUM_11,
-        .sda_pullup_en = GPIO_PULLUP_ENABLE,
-        .scl_pullup_en = GPIO_PULLUP_ENABLE,
-        .master = {.clk_speed = 400000},
+
+    // ==========================================
+    // 2. 初始化硬件 (⚠️ 必须放在 UI 锁的外面！)
+    // ==========================================
+    bsp_audio_init(NULL);
+    spk_codec_dev = bsp_audio_codec_speaker_init();
+    mic_codec_dev = bsp_audio_codec_microphone_init();
+
+    esp_codec_dev_sample_info_t fs = {
+        .bits_per_sample = 16,
+        .channel = 1,
+        .channel_mask = 0,
+        .sample_rate = 16000,
+        .mclk_multiple = 0,
     };
-    i2c_param_config(I2C_NUM_0, &i2c_conf);
-    i2c_driver_install(I2C_NUM_0, i2c_conf.mode, 0, 0, 0);
+    
+    // 打开设备
+    esp_codec_dev_open(spk_codec_dev, &fs);
+    esp_codec_dev_open(mic_codec_dev, &fs);
+    
+    // 🌟 核心魔法：解除音量封印，拉到最大！
+    if (spk_codec_dev) {
+        esp_codec_dev_set_out_vol(spk_codec_dev, 100); 
+    }
 
-    // 2. 实例化这个强悍的音频编解码器类
-    // 传入的引脚必须和 CoreS3 实际引脚对应 (参考我上个回复给你的引脚表)
-    audio_codec = new CoreS3AudioCodec(
-        (void*)I2C_NUM_0, 
-        16000, 16000,           // 采样率：16kHz 对语音识别最好
-        GPIO_NUM_0,             // MCLK
-        GPIO_NUM_34,            // BCLK
-        GPIO_NUM_33,            // WS
-        GPIO_NUM_13,            // DOUT (Speaker)
-        GPIO_NUM_14,            // DIN (Mic)
-        0x36,                   // AW88298 I2C 地址
-        0x40,                   // ES7210 I2C 地址
-        false                   // 不开启硬件回声消除参考
-    );
-
-    // 3. 启用麦克风和扬声器
-    audio_codec->EnableInput(true);
-    audio_codec->EnableOutput(true);
-    audio_codec->SetOutputVolume(70); // 设置一个适中的音量
-    // 3. 实例化 UI
-    // CoreS3 屏幕正好是 320x240，完美匹配我们的设计
+    // ==========================================
+    // 3. 初始化 UI (✅ 只有 LVGL 的操作才需要加锁)
+    // ==========================================
+    bsp_display_lock(0);
     my_avatar = new SmileAvatar(lv_scr_act());
-
-    // 4. 绑定触摸事件
     lv_obj_add_event_cb(my_avatar->getView(), avatar_event_cb, LV_EVENT_CLICKED, NULL);
-
-// 6. 释放锁，允许后台的 LVGL 任务开始渲染画面
     bsp_display_unlock();
 
-    // 2. 触发 Wi-Fi 异步连接 (瞬间返回，绝不卡主线程)
+    // ==========================================
+    // 4. 启动各种后台任务
+    // ==========================================
+    // 触发 Wi-Fi 异步连接
     Network::init_wifi_sta();
-
-    // 3. 开启一个后台任务，等 Wi-Fi 结果来切换表情
     xTaskCreate(wifi_monitor_task, "wifi_monitor", 4096, NULL, 5, NULL);
 
-    xTaskCreate(audio_loopback_task, "audio_loop", 4096, NULL, 5, NULL);
-
+    // 启动全双工回环测试任务
+    if (spk_codec_dev && mic_codec_dev) {
+        xTaskCreate(audio_loopback_task, "audio_loop", 4096, NULL, 5, NULL);
+    }
 }
