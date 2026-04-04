@@ -1,158 +1,106 @@
 #include <stdio.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "esp_log.h"
+#include <nvs.h>
+#include <nvs_flash.h>
+// 引入官方的 LVGL 移植层
 #include "lvgl.h"
-#include "ui/SmileAvatar.hpp" 
+#include "esp_lvgl_port.h"
+// 🌟 补坑 1：加入 LCD 面板操作的头文件
+#include <esp_lcd_panel_ops.h>
+// 你自己的 UI
+#include "ui/SmileAvatar.hpp"
 
-// CoreS3 BSP (板级支持包) 或你自己的屏幕/触摸驱动头文件
-#include "bsp/esp-bsp.h"
-#include "bsp/display.h" 
-#include "bsp/touch.h"
-// 引入我们刚写的网络模块
-#include "network/WifiManager.hpp"
+// 引入小智的大脑与硬件配置
+#include "application.h"
+#include "board.h"
+#include "config.h" // 包含 DISPLAY_WIDTH 等宏定义
 
-// 替换为这一行
-#include "driver/i2c_master.h"
-#include "esp_heap_caps.h" // 引入高级内存分配器
+static const char* TAG = "MAIN";
 
-static SmileAvatar* my_avatar = nullptr;
+// 🌟 核心：全局企鹅对象。
+// 注意这里绝对不能加 static！因为 m5stack_core_s3.cc 里的代理屏幕需要用 extern 找到它
+SmileAvatar* my_avatar = nullptr;
 
-// 声明全局的扬声器和麦克风设备句柄
-esp_codec_dev_handle_t spk_codec_dev = NULL;
-esp_codec_dev_handle_t mic_codec_dev = NULL;
-
-#define AUDIO_BUFFER_SIZE 1024
-
-// 触摸点击事件回调 (由 LVGL 内部线程调用，不需要加锁)
-static void avatar_event_cb(lv_event_t * e) {
-    // 使用静态整数记录当前的表情索引
-    static int current_idx = 0;
-    if (my_avatar == nullptr) return;
-
-    // 每次点击，索引 + 1，如果超过 12 (即 DISDAIN)，就回到 0 (NEUTRAL)
-    current_idx++;
-    if (current_idx > 12) {
-        current_idx = 0; 
-    }
-    
-    // 将 int 强制转换为 AvatarEmotion 枚举并设置
-    my_avatar->setEmotion(static_cast<AvatarEmotion>(current_idx));
-}
-// 新增：一个后台独立任务，专门用来监控 Wi-Fi 状态并控制表情
-static void wifi_monitor_task(void *arg) {
-    // 刚开机，告诉 UI 正在努力连网，露出“楚楚可怜/期待”的表情
-    if (my_avatar) {
-        bsp_display_lock(0);
-        my_avatar->setEmotion(AvatarEmotion::PLEASE);
-        bsp_display_unlock();
-    }
-
-    // 死等 FreeRTOS 事件组的标志位（非阻塞，不会卡死 UI 动画）
-    EventBits_t bits = xEventGroupWaitBits(Network::s_wifi_event_group,
-            Network::WIFI_CONNECTED_BIT | Network::WIFI_FAIL_BIT,
-            pdFALSE, pdFALSE, portMAX_DELAY);
-
-    bsp_display_lock(0);
-    // 根据连网结果切换表情
-    if (bits & Network::WIFI_CONNECTED_BIT) {
-        my_avatar->setEmotion(AvatarEmotion::HAPPY); // 连网成功，开心月牙眼！
-    } else if (bits & Network::WIFI_FAIL_BIT) {
-        my_avatar->setEmotion(AvatarEmotion::SAD);   // 连网失败，沮丧八字眼
-    }
-    bsp_display_unlock();
-
-    // 任务完成，自我销毁
-    vTaskDelete(NULL);
-}
-static const char *TAG = "AUDIO_TEST"; // 定义 Log 标签
-
-#define RECORD_TIME_SEC 2
-#define RECORD_BUFFER_SIZE (16000 * 2 * 1 * RECORD_TIME_SEC)
-void audio_loopback_task(void *pvParameters)
-{
-    ESP_LOGI(TAG, "==> 进入【对讲机模式】音频 Task");
-
-    // ==========================================
-    // 🌟 核心魔法：使用 heap_caps_malloc 强制从 8MB 的外部 PSRAM 借用内存！
-    // 别说 64KB，在这里借 1MB 都轻轻松松！
-    // ==========================================
-    uint8_t *tape_buffer = (uint8_t *)heap_caps_malloc(RECORD_BUFFER_SIZE, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-    
-    if (tape_buffer == NULL) {
-        // 如果连外挂内存都失败了（极小概率），那就降级，只录 0.5 秒
-        ESP_LOGE(TAG, "PSRAM 内存分配失败！尝试降级申请内部内存...");
-        tape_buffer = (uint8_t *)malloc(16000 * 2 * 1 * 0.5); // 16KB
-        if (tape_buffer == NULL) {
-             ESP_LOGE(TAG, "彻底没内存了！");
-             vTaskDelete(NULL);
-        }
-    }
-
-    while (1) {
-        // ... 下面的录音和播放逻辑保持完全不变 ...
-        ESP_LOGW(TAG, "🎤 [录音中...] 请对着麦克风说话 (2秒)...");
-        esp_codec_dev_set_out_vol(spk_codec_dev, 0); 
-        
-        esp_err_t read_res = esp_codec_dev_read(mic_codec_dev, (void*)tape_buffer, RECORD_BUFFER_SIZE);
-        
-        if (read_res == ESP_OK) {
-            ESP_LOGI(TAG, "🔊 [播放中...] 正在回放刚才的声音...");
-            esp_codec_dev_set_out_vol(spk_codec_dev, 80); 
-            esp_codec_dev_write(spk_codec_dev, (void*)tape_buffer, RECORD_BUFFER_SIZE);
-            vTaskDelay(pdMS_TO_TICKS(500)); 
-        } else {
-            ESP_LOGE(TAG, "读取麦克风失败!");
-            vTaskDelay(pdMS_TO_TICKS(1000));
-        }
-    }
-}
+// 🌟 核心：接收从 m5stack_core_s3.cc 透传过来的真实屏幕句柄
+extern esp_lcd_panel_io_handle_t global_panel_io;
+extern esp_lcd_panel_handle_t global_panel;
 
 extern "C" void app_main(void) {
-    // 1. 一键初始化显示屏、触摸屏并启动 LVGL 后台任务！
-    bsp_display_start();
-    bsp_display_backlight_on();
+    ESP_LOGI(TAG, "=== Penguin's Ant Robot Booting ===");
+// ==========================================
+    // 🌟 第一步：必须最先初始化 NVS (Flash)！
+    // ==========================================
+    esp_err_t ret = nvs_flash_init();
+    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        ret = nvs_flash_init();
+    }
+    ESP_ERROR_CHECK(ret);
+    // ==========================================
+    // 1. 小智硬件底座全面接管 (电源、音频、触摸、SPI 屏幕总线)
+    // ==========================================
+    // 这一步执行完，global_panel_io 和 global_panel 就有值了
+    Board& board = Board::GetInstance();
 
     // ==========================================
-    // 2. 初始化硬件 (⚠️ 必须放在 UI 锁的外面！)
+    // 2. 画板交接：将屏幕控制权交给 LVGL
     // ==========================================
-    bsp_audio_init(NULL);
-    spk_codec_dev = bsp_audio_codec_speaker_init();
-    mic_codec_dev = bsp_audio_codec_microphone_init();
+    if (global_panel_io == nullptr || global_panel == nullptr) {
+        ESP_LOGE(TAG, "致命错误：未能获取底层屏幕句柄！请检查透传是否成功。");
+        return;
+    }
 
-    esp_codec_dev_sample_info_t fs = {
-        .bits_per_sample = 16,
-        .channel = 1,
-        .channel_mask = 0,
-        .sample_rate = 16000,
-        .mclk_multiple = 0,
+    lvgl_port_cfg_t lvgl_cfg = ESP_LVGL_PORT_INIT_CONFIG();
+    esp_err_t err = lvgl_port_init(&lvgl_cfg);
+    if (err != ESP_OK) ESP_LOGE(TAG, "LVGL 初始化失败!");
+
+    lvgl_port_display_cfg_t disp_cfg = {
+        .io_handle = global_panel_io,
+        .panel_handle = global_panel,
+        .buffer_size = DISPLAY_WIDTH * DISPLAY_HEIGHT / 10, // 分配 1/10 屏幕的 DMA 缓存
+        .double_buffer = true,
+        .hres = DISPLAY_WIDTH,
+        .vres = DISPLAY_HEIGHT,
+        .monochrome = false,
+        .rotation = {
+            .swap_xy = DISPLAY_SWAP_XY,
+            .mirror_x = DISPLAY_MIRROR_X,
+            .mirror_y = DISPLAY_MIRROR_Y,
+        },
+        .color_format = LV_COLOR_FORMAT_RGB565,
+        .flags = {
+            .buff_dma = true,
+            .buff_spiram = false, // 优先使用内部 SRAM 以保证刷屏帧率
+        }
     };
     
-    // 打开设备
-    esp_codec_dev_open(spk_codec_dev, &fs);
-    esp_codec_dev_open(mic_codec_dev, &fs);
-    
-    // 🌟 核心魔法：解除音量封印，拉到最大！
-    if (spk_codec_dev) {
-        esp_codec_dev_set_out_vol(spk_codec_dev, 100); 
-    }
+    // 把底层的硬件配置添加给 LVGL
+    lvgl_port_add_disp(&disp_cfg);
+// ==========================================
+// ==========================================
+    // 🌟 补坑 2：强制唤醒 LCD 芯片并拉满背光！(极其重要)
+    // ==========================================
+    esp_lcd_panel_disp_on_off(global_panel, true);
+    Board::GetInstance().GetBacklight()->SetBrightness(100);
 
     // ==========================================
-    // 3. 初始化 UI (✅ 只有 LVGL 的操作才需要加锁)
+    // 3. 请企鹅入场
     // ==========================================
-    bsp_display_lock(0);
+    lvgl_port_lock(0); // 操作 LVGL 必须加锁
     my_avatar = new SmileAvatar(lv_scr_act());
-    lv_obj_add_event_cb(my_avatar->getView(), avatar_event_cb, LV_EVENT_CLICKED, NULL);
-    bsp_display_unlock();
+    my_avatar->setEmotion(AvatarEmotion::PLEASE); // 刚开机，露出期待的表情
+    lvgl_port_unlock();
 
     // ==========================================
-    // 4. 启动各种后台任务
+    // 4. 唤醒小智大脑！
     // ==========================================
-    // 触发 Wi-Fi 异步连接
-    Network::init_wifi_sta();
-    xTaskCreate(wifi_monitor_task, "wifi_monitor", 4096, NULL, 5, NULL);
+    ESP_LOGI(TAG, "启动小智大脑中枢...");
+    
+    // Application::Start() 会自动接管 Wi-Fi 扫描、配网、WebSocket 连接和录音/播放。
+    // 当它的状态改变时，会去调用我们的 AvatarBridgeDisplay，从而改变 my_avatar 的表情！
+    Application::GetInstance().Start();
 
-    // 启动全双工回环测试任务
-    if (spk_codec_dev && mic_codec_dev) {
-        xTaskCreate(audio_loopback_task, "audio_loop", 4096, NULL, 5, NULL);
-    }
+    // app_main 到这里就可以结束了，LVGL 的渲染和小智的逻辑都会在它们各自的后台 Task 里跑
 }

@@ -1,0 +1,14 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "npm",
+			"script": "build-only",
+			"path": "managed_components/espressif__esp_video/examples/simple_video_server/frontend",
+			"group": "build",
+			"problemMatcher": [],
+			"label": "npm: build-only - managed_components/espressif__esp_video/examples/simple_video_server/frontend",
+			"detail": "vite build"
+		}
+	]
+}
