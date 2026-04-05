@@ -15,6 +15,64 @@
 
 extern SmileAvatar* my_avatar;
 
+MyDisplay::MyDisplay(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_handle_t panel,
+                                               int width, int height, int offset_x, int offset_y, bool mirror_x,
+                                               bool mirror_y, bool swap_xy)
+    : LvglDisplay(), panel_io_(panel_io), panel_(panel) {
+        width_ = width;
+        height_ = height;
+
+    lvgl_port_cfg_t lvgl_cfg = ESP_LVGL_PORT_INIT_CONFIG();
+    esp_err_t err = lvgl_port_init(&lvgl_cfg);
+    if (err != ESP_OK) ESP_LOGE(TAG, "LVGL 初始化失败!");
+    
+        // 🌟 补坑 2：强制唤醒 LCD 芯片并拉满背光！(极其重要)
+    // ==========================================
+    esp_lcd_panel_disp_on_off(panel_, true);
+    
+    lv_init();
+
+    
+    lvgl_port_display_cfg_t disp_cfg = {
+        .io_handle      = panel_io_,
+        .panel_handle   = panel_,
+        .control_handle = nullptr,
+        .buffer_size    = static_cast<uint32_t>(width_ * 20),
+        .double_buffer  = true,
+        .trans_size     = 0,
+        .hres           = static_cast<uint32_t>(width_),
+        .vres           = static_cast<uint32_t>(height_),
+        .monochrome     = false,
+        .rotation =
+            {
+                .swap_xy  = swap_xy,
+                .mirror_x = mirror_x,
+                .mirror_y = mirror_y,
+            },
+        .color_format = LV_COLOR_FORMAT_RGB565,
+        .flags =
+            {
+                .buff_dma     = 1,
+                .buff_spiram  = 0,
+                .sw_rotate    = 0,
+                .swap_bytes   = 1,
+                .full_refresh = 0,
+                .direct_mode  = 0,
+            },
+    };
+    
+    // 把底层的硬件配置添加给 LVGL
+    lvgl_port_add_disp(&disp_cfg);
+
+    if (display_ == nullptr) {
+        ESP_LOGE(TAG, "Failed to add display");
+        return;
+    }
+    
+    if (offset_x != 0 || offset_y != 0) {
+        lv_display_set_offset(display_, offset_x, offset_y);
+    }
+}
 MyDisplay::MyDisplay() {}
 MyDisplay::~MyDisplay() {} 
 // 拦截 1：小智切换情绪

@@ -47,43 +47,43 @@ extern "C" void app_main(void) {
     // ==========================================
     // 2. 画板交接：将屏幕控制权交给 LVGL
     // ==========================================
-    if (global_panel_io == nullptr || global_panel == nullptr) {
-        ESP_LOGE(TAG, "致命错误：未能获取底层屏幕句柄！请检查透传是否成功。");
-        return;
-    }
+    // if (global_panel_io == nullptr || global_panel == nullptr) {
+    //     ESP_LOGE(TAG, "致命错误：未能获取底层屏幕句柄！请检查透传是否成功。");
+    //     return;
+    // }
 
-    lvgl_port_cfg_t lvgl_cfg = ESP_LVGL_PORT_INIT_CONFIG();
-    esp_err_t err = lvgl_port_init(&lvgl_cfg);
-    if (err != ESP_OK) ESP_LOGE(TAG, "LVGL 初始化失败!");
+    // lvgl_port_cfg_t lvgl_cfg = ESP_LVGL_PORT_INIT_CONFIG();
+    // esp_err_t err = lvgl_port_init(&lvgl_cfg);
+    // if (err != ESP_OK) ESP_LOGE(TAG, "LVGL 初始化失败!");
 
-    lvgl_port_display_cfg_t disp_cfg = {
-        .io_handle = global_panel_io,
-        .panel_handle = global_panel,
-        .buffer_size = DISPLAY_WIDTH * DISPLAY_HEIGHT / 10, // 分配 1/10 屏幕的 DMA 缓存
-        .double_buffer = true,
-        .hres = DISPLAY_WIDTH,
-        .vres = DISPLAY_HEIGHT,
-        .monochrome = false,
-        .rotation = {
-            .swap_xy = DISPLAY_SWAP_XY,
-            .mirror_x = DISPLAY_MIRROR_X,
-            .mirror_y = DISPLAY_MIRROR_Y,
-        },
-        .color_format = LV_COLOR_FORMAT_RGB565,
-        .flags = {
-            .buff_dma = true,
-            .buff_spiram = false, // 优先使用内部 SRAM 以保证刷屏帧率
-        }
-    };
+    // lvgl_port_display_cfg_t disp_cfg = {
+    //     .io_handle = global_panel_io,
+    //     .panel_handle = global_panel,
+    //     .buffer_size = DISPLAY_WIDTH * DISPLAY_HEIGHT / 10, // 分配 1/10 屏幕的 DMA 缓存
+    //     .double_buffer = true,
+    //     .hres = DISPLAY_WIDTH,
+    //     .vres = DISPLAY_HEIGHT,
+    //     .monochrome = false,
+    //     .rotation = {
+    //         .swap_xy = DISPLAY_SWAP_XY,
+    //         .mirror_x = DISPLAY_MIRROR_X,
+    //         .mirror_y = DISPLAY_MIRROR_Y,
+    //     },
+    //     .color_format = LV_COLOR_FORMAT_RGB565,
+    //     .flags = {
+    //         .buff_dma = true,
+    //         .buff_spiram = false, // 优先使用内部 SRAM 以保证刷屏帧率
+    //     }
+    // };
     
-    // 把底层的硬件配置添加给 LVGL
-    lvgl_port_add_disp(&disp_cfg);
+    // // 把底层的硬件配置添加给 LVGL
+    // lvgl_port_add_disp(&disp_cfg);
 // ==========================================
 // ==========================================
-    // 🌟 补坑 2：强制唤醒 LCD 芯片并拉满背光！(极其重要)
-    // ==========================================
-    esp_lcd_panel_disp_on_off(global_panel, true);
-    Board::GetInstance().GetBacklight()->SetBrightness(100);
+    // // 🌟 补坑 2：强制唤醒 LCD 芯片并拉满背光！(极其重要)
+    // // ==========================================
+    // esp_lcd_panel_disp_on_off(global_panel, true);
+    // Board::GetInstance().GetBacklight()->SetBrightness(100);
 
     // ==========================================
     // 3. 请企鹅入场
@@ -98,7 +98,6 @@ extern "C" void app_main(void) {
     // ==========================================
     ESP_LOGI(TAG, "启动小智大脑中枢...");
     
-    // Application::Start() 会自动接管 Wi-Fi 扫描、配网、WebSocket 连接和录音/播放。
     // 当它的状态改变时，会去调用我们的 AvatarBridgeDisplay，从而改变 my_avatar 的表情！
     Application::GetInstance().Start();
 

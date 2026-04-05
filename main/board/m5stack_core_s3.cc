@@ -31,9 +31,6 @@ esp_lcd_panel_handle_t global_panel = NULL;
 // 🌟 核心魔法：创建一个代理屏幕，拦截小智的所有绘制指令
 // ==========================================
 
-// esp_lcd_panel_io_handle_t panel_io = nullptr;
-// esp_lcd_panel_handle_t panel       = nullptr;
-
 class Pmic : public Axp2101 {
 public:
     // Power Init
@@ -308,9 +305,11 @@ private:
         esp_lcd_panel_invert_color(panel, true);
         esp_lcd_panel_swap_xy(panel, DISPLAY_SWAP_XY);
         esp_lcd_panel_mirror(panel, DISPLAY_MIRROR_X, DISPLAY_MIRROR_Y);
-        global_panel_io = panel_io;
-        global_panel = panel;
-        bridge_display_ = new MyDisplay();
+        // global_panel_io = panel_io;
+        // global_panel = panel;
+        // bridge_display_ = new MyDisplay();
+        bridge_display_ = new MyDisplay(panel_io, panel, DISPLAY_WIDTH, DISPLAY_HEIGHT, DISPLAY_OFFSET_X,
+                                              DISPLAY_OFFSET_Y, DISPLAY_MIRROR_X, DISPLAY_MIRROR_Y, DISPLAY_SWAP_XY);
         // display_ = new SpiLcdDisplay(panel_io, panel,
         //                             DISPLAY_WIDTH, DISPLAY_HEIGHT, DISPLAY_OFFSET_X, DISPLAY_OFFSET_Y, DISPLAY_MIRROR_X, DISPLAY_MIRROR_Y, DISPLAY_SWAP_XY);
     }
@@ -365,7 +364,7 @@ public:
         I2cDetect();
         InitializeSpi();
         InitializeIli9342Display();
-        // InitializeCamera();
+        InitializeCamera();
         InitializeFt6336TouchPad();
         GetBacklight()->RestoreBrightness();
     }
