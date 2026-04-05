@@ -18,7 +18,7 @@
 
 #define TAG "M5StackCoreS3Board"
 #include "display.h"           // 小智的显示基类
-#include "ui/SmileAvatar.hpp"  // 我们的企鹅
+#include "ui/SmileAvatar.h"  // 我们的企鹅
 #include "my_display.h"        // 我们的自定义显示类
 
 // 声明全局企鹅指针（将在 main.cpp 中被实例化）

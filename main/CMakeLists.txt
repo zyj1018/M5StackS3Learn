@@ -8,6 +8,7 @@ set(PENGUIN_SOURCES
     "board/m5stack_core_s3.cc"
     "board/cores3_audio_codec.cc"
     "board/my_display.cc"
+    "ui/SmileAvatar.cc"
     # 你的 SmileAvatar 只有头文件，所以这里不用写
 )
 
@@ -71,12 +72,6 @@ file(GLOB BOARD_COMMON_SOURCES ${XIAOZHI_MAIN_DIR}/boards/common/*.cc)
 list(APPEND XIAOZHI_SOURCES ${BOARD_COMMON_SOURCES} )
 list(APPEND XIAOZHI_INCLUDE_DIRS ${XIAOZHI_MAIN_DIR}/boards/common )
 
-
-# # 附加宏定义：伪装成 CoreS3，让小智的底层逻辑顺利运行
-# target_compile_definitions(${COMPONENT_LIB} PRIVATE 
-#     "BOARD_TYPE=\"m5stack-core-s3\""
-#      "BOARD_NAME=\"m5stack-core-s3\""
-# )
 
 # ==========================================
 # 🌟 补坑 1：配置多语言与收集 OGG 音频提示音

@@ -10,7 +10,7 @@
 // 🌟 补坑 1：加入 LCD 面板操作的头文件
 #include <esp_lcd_panel_ops.h>
 // 你自己的 UI
-#include "ui/SmileAvatar.hpp"
+#include "ui/SmileAvatar.h"
 
 // 引入小智的大脑与硬件配置
 #include "application.h"
