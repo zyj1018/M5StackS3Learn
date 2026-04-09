@@ -5,6 +5,8 @@ set(XIAOZHI_MAIN_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../xiaozhi-esp32/main")
 # 2. 收集我们企鹅机器人自己的源文件
 set(PENGUIN_SOURCES
     "main.cpp"
+    "app/app_manager.cpp"
+    "app/penguin_app.cpp"
     "hal/hal.cpp"
     "hal/hal_mcp.cpp"
     "driver/SG90Servo/sg90Servo.cc"
@@ -62,8 +64,9 @@ set(XIAOZHI_SOURCES
 list(TRANSFORM XIAOZHI_SOURCES PREPEND "${XIAOZHI_MAIN_DIR}/")
 
 # 4. 收集所有的头文件搜索路径
-set(MY_INCLUDE_DIRS 
-    "." 
+set(MY_INCLUDE_DIRS
+    "."
+    "app"
     "ui" 
     "board"
     "hal"
