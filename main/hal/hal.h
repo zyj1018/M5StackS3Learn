@@ -9,6 +9,13 @@ extern SG90Servo* servo_x; // 例如：水平方向舵机
 extern SG90Servo* servo_y; // 例如：垂直方向舵机
 
 /**
+ * @brief MCP 工具注册初始化
+ * 
+ * 将舵机等硬件控制功能注册给小智大脑 (MCP Server)
+ */
+void xiaozhi_mcp_init();
+
+/**
  * @brief 硬件抽象层初始化
  * 
  * 包含整个系统级别的硬件及基础服务的初始化，例如 NVS (Non-Volatile Storage) 的挂载等。

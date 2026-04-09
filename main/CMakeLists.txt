@@ -6,6 +6,7 @@ set(XIAOZHI_MAIN_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../xiaozhi-esp32/main")
 set(PENGUIN_SOURCES
     "main.cpp"
     "hal/hal.cpp"
+    "hal/hal_mcp.cpp"
     "driver/SG90Servo/sg90Servo.cc"
     "board/m5stack_core_s3.cc"
     "board/cores3_audio_codec.cc"
