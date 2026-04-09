@@ -1,0 +1,89 @@
+#include "hal.h"
+#include <esp_log.h>
+#include <nvs.h>
+#include <nvs_flash.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+
+static const char* TAG = "HAL";
+
+namespace HAL {
+
+// 定义全局的舵机控制指针
+SG90Servo* servo_x = nullptr;
+SG90Servo* servo_y = nullptr;
+
+// 定义高级运动控制器指针
+::stackchan::motion::Motion* global_motion = nullptr;
+
+/**
+ * @brief Motion 控制器的后台刷新任务
+ * 
+ * 必须以 50Hz (20ms) 左右的频率调用 global_motion->update()，
+ * 这样基类 Servo 中的 Spring 动画插值引擎才能不断计算出中间角度，并驱动舵机平滑转动。
+ */
+static void motion_update_task(void* arg) {
+    while (1) {
+        if (global_motion) {
+            global_motion->update();
+        }
+        vTaskDelay(pdMS_TO_TICKS(20));
+    }
+}
+
+/**
+ * @brief 初始化两路舵机
+ */
+static void servo_init() {
+    ESP_LOGI(TAG, "Initializing Servos...");
+    // 注意：这里的 GPIO 引脚 (GPIO_NUM_1 和 GPIO_NUM_2) 仅为示例。
+    // 请根据你 CoreS3 实际连接的扩展引脚 (如 PORT B 或 PORT C) 进行修改。
+    // 两个舵机必须使用不同的 LEDC 通道 (CHANNEL_0 和 CHANNEL_1)。
+    servo_x = new SG90Servo(GPIO_NUM_1, LEDC_CHANNEL_0, LEDC_TIMER_0);
+    servo_y = new SG90Servo(GPIO_NUM_2, LEDC_CHANNEL_1, LEDC_TIMER_0);
+    
+    // 初始化基类属性
+    servo_x->init();
+    servo_y->init();
+
+    ESP_LOGI(TAG, "Servos initialized successfully.");
+
+    // 初始化高级运动系统
+    // std::make_unique<SG90Servo> 不能直接用于包装已有的裸指针，我们用 wrapper 或者直接用原指针管理
+    global_motion = new ::stackchan::motion::Motion(
+        std::unique_ptr<::stackchan::motion::Servo>(servo_x),
+        std::unique_ptr<::stackchan::motion::Servo>(servo_y)
+    );
+    global_motion->init();
+
+    // 启动 Motion 调度任务
+    xTaskCreate(motion_update_task, "motion_update", 4096, NULL, 5, NULL);
+}
+
+void init() {
+    ESP_LOGI(TAG, "Initializing Hardware Abstraction Layer...");
+
+    // ==========================================
+    // 1. 初始化 NVS (Flash)
+    // ==========================================
+    esp_err_t ret = nvs_flash_init();
+    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        ESP_LOGW(TAG, "NVS partition needs to be erased. Erasing...");
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        ret = nvs_flash_init();
+    }
+    ESP_ERROR_CHECK(ret);
+    ESP_LOGI(TAG, "NVS initialized successfully.");
+
+    // ==========================================
+    // 2. 初始化外部驱动 (舵机)
+    // ==========================================
+    servo_init();
+
+    // ==========================================
+    // 3. 将硬件功能注册给 MCP
+    // ==========================================
+    xiaozhi_mcp_init();
+}
+
+} // namespace HAL
