@@ -8,6 +8,7 @@ set(PENGUIN_SOURCES
     "hal/hal.cpp"
     "hal/hal_mcp.cpp"
     "driver/SG90Servo/sg90Servo.cc"
+    "my_stack/motion/motion.cpp"
     "board/m5stack_core_s3.cc"
     "board/cores3_audio_codec.cc"
     "board/my_display.cc"
@@ -67,6 +68,7 @@ set(MY_INCLUDE_DIRS
     "board"
     "hal"
     "driver/SG90Servo"
+    "my_stack"
 )
 set(XIAOZHI_INCLUDE_DIRS "." "display" "display/lvgl_display" "display/lvgl_display/jpg" "audio" "protocols")
 

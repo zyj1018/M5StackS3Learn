@@ -20,45 +20,53 @@ void xiaozhi_mcp_init() {
     auto& mcp_server = McpServer::GetInstance();
 
     // ---------------------------------------------------------
-    // 工具 1：控制水平方向舵机 (X轴)
+    // 工具 1：控制机器人做复合动作 (利用 Motion 类)
     // ---------------------------------------------------------
-    mcp_server.AddTool("control_servo_x", 
-        "控制机器人头部的水平旋转。参数 angle 是 0 到 180 之间的整数（90为正前方，0为最左，180为最右）",
+    mcp_server.AddTool("perform_motion", 
+        "控制机器人执行预设的高级复合动作。参数 action 必须是以下之一: 'nod' (点头), 'shakeHead' (摇头), 'lookAround' (环顾四周)",
         [](const cJSON* args) -> std::string {
-            if (!args || !cJSON_HasObjectItem(args, "angle")) {
-                return "{\"status\":\"error\", \"message\":\"Missing 'angle' parameter\"}";
+            if (!args || !cJSON_HasObjectItem(args, "action")) {
+                return "{\"status\":\"error\", \"message\":\"Missing 'action' parameter\"}";
             }
             
-            int angle = cJSON_GetObjectItem(args, "angle")->valueint;
+            std::string action = cJSON_GetObjectItem(args, "action")->valuestring;
             
-            if (servo_x) {
-                // 平滑移动到指定角度，15ms的步进延迟
-                servo_x->smoothMove(angle, 15);
-                ESP_LOGI(TAG, "MCP Tool called: control_servo_x, angle=%d", angle);
-                return "{\"status\":\"success\", \"message\":\"Servo X moved\"}";
+            if (global_motion) {
+                if (action == "nod") {
+                    global_motion->nod();
+                } else if (action == "shakeHead") {
+                    global_motion->shakeHead();
+                } else if (action == "lookAround") {
+                    global_motion->lookAround();
+                } else {
+                    return "{\"status\":\"error\", \"message\":\"Unknown action: " + action + "\"}";
+                }
+                ESP_LOGI(TAG, "MCP Tool called: perform_motion, action=%s", action.c_str());
+                return "{\"status\":\"success\", \"message\":\"Action " + action + " performed\"}";
             } else {
-                return "{\"status\":\"error\", \"message\":\"Servo X is not initialized\"}";
+                return "{\"status\":\"error\", \"message\":\"Motion controller is not initialized\"}";
             }
         });
 
     // ---------------------------------------------------------
-    // 工具 2：控制垂直方向舵机 (Y轴)
+    // 工具 2：精确控制舵机角度
     // ---------------------------------------------------------
-    mcp_server.AddTool("control_servo_y", 
-        "控制机器人头部的垂直旋转（点头/抬头）。参数 angle 是 0 到 180 之间的整数（90为平视）",
+    mcp_server.AddTool("set_servo_pose", 
+        "控制机器人头部的精确角度。参数 x_angle 和 y_angle 都是 0 到 180 之间的整数（90为正前方平视）",
         [](const cJSON* args) -> std::string {
-            if (!args || !cJSON_HasObjectItem(args, "angle")) {
-                return "{\"status\":\"error\", \"message\":\"Missing 'angle' parameter\"}";
+            if (!args || !cJSON_HasObjectItem(args, "x_angle") || !cJSON_HasObjectItem(args, "y_angle")) {
+                return "{\"status\":\"error\", \"message\":\"Missing 'x_angle' or 'y_angle' parameter\"}";
             }
             
-            int angle = cJSON_GetObjectItem(args, "angle")->valueint;
+            int x_angle = cJSON_GetObjectItem(args, "x_angle")->valueint;
+            int y_angle = cJSON_GetObjectItem(args, "y_angle")->valueint;
             
-            if (servo_y) {
-                servo_y->smoothMove(angle, 15);
-                ESP_LOGI(TAG, "MCP Tool called: control_servo_y, angle=%d", angle);
-                return "{\"status\":\"success\", \"message\":\"Servo Y moved\"}";
+            if (global_motion) {
+                global_motion->setPose(x_angle, y_angle);
+                ESP_LOGI(TAG, "MCP Tool called: set_servo_pose, x=%d, y=%d", x_angle, y_angle);
+                return "{\"status\":\"success\", \"message\":\"Pose updated\"}";
             } else {
-                return "{\"status\":\"error\", \"message\":\"Servo Y is not initialized\"}";
+                return "{\"status\":\"error\", \"message\":\"Motion controller is not initialized\"}";
             }
         });
 

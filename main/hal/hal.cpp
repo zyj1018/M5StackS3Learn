@@ -11,6 +11,9 @@ namespace HAL {
 SG90Servo* servo_x = nullptr;
 SG90Servo* servo_y = nullptr;
 
+// 定义高级运动控制器指针
+my_stack::motion::Motion* global_motion = nullptr;
+
 /**
  * @brief 初始化两路舵机
  */
@@ -22,6 +25,10 @@ static void servo_init() {
     servo_x = new SG90Servo(GPIO_NUM_1, LEDC_CHANNEL_0, LEDC_TIMER_0);
     servo_y = new SG90Servo(GPIO_NUM_2, LEDC_CHANNEL_1, LEDC_TIMER_0);
     ESP_LOGI(TAG, "Servos initialized successfully.");
+
+    // 初始化高级运动系统
+    global_motion = new my_stack::motion::Motion(servo_x, servo_y);
+    global_motion->init();
 }
 
 void init() {
