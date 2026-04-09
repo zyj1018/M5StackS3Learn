@@ -10,6 +10,11 @@ extern SG90Servo* servo_x; // 例如：水平方向舵机
 extern SG90Servo* servo_y; // 例如：垂直方向舵机
 
 // 暴露高级 Motion 实例指针
+namespace stackchan {
+namespace motion {
+class Motion;
+}
+}
 extern stackchan::motion::Motion* global_motion;
 
 /**
