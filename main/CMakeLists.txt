@@ -11,6 +11,7 @@ set(PENGUIN_SOURCES
     "hal/hal_mcp.cpp"
     "driver/SG90Servo/sg90Servo.cc"
     "my_stack/motion/motion.cpp"
+    "my_stack/motion/servo.cpp"
     "board/m5stack_core_s3.cc"
     "board/cores3_audio_codec.cc"
     "board/my_display.cc"
