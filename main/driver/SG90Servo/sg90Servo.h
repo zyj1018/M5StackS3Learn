@@ -2,39 +2,31 @@
 
 #include <driver/gpio.h>
 #include <driver/ledc.h>
+#include "my_stack/motion/servo.h"
 
 /**
- * @brief SG90s 舵机控制类
+ * @brief SG90s 舵机控制类，适配 StackChan Motion 体系
  * 
- * 基于 ESP-IDF 的 LEDC (LED Control) PWM 外设实现对 SG90s 舵机的控制。
- * SG90s 工作频率为 50Hz (周期 20ms)，脉宽 0.5ms ~ 2.5ms 对应 0° ~ 180°。
+ * 继承自 stackchan::motion::Servo，利用底层 LEDC 生成 PWM 信号控制。
+ * 平滑动画和物理插值由基类 Servo::update() 处理，本类只需实现真实的物理角度输出 set_angle_impl()。
  */
-class SG90Servo {
+class SG90Servo : public stackchan::motion::Servo {
 public:
     /**
      * @brief 构造并初始化舵机
-     * 
-     * @param pin 舵机 PWM 控制信号连接的 GPIO 引脚
-     * @param channel LEDC 通道 (例如 LEDC_CHANNEL_0)
-     * @param timer LEDC 定时器 (例如 LEDC_TIMER_0)
      */
     SG90Servo(gpio_num_t pin, ledc_channel_t channel = LEDC_CHANNEL_0, ledc_timer_t timer = LEDC_TIMER_0);
     
-    ~SG90Servo();
+    virtual ~SG90Servo();
 
     /**
-     * @brief 设置舵机角度
-     * 
-     * @param angle 目标角度 (0 到 180)
+     * @brief 立即设置底层物理角度 (覆写基类纯虚函数)
+     * 被基类 update() 中的弹簧动画引擎调用
      */
+    void set_angle_impl(int angle) override;
+
+    // 以下两个方法保留为了向下兼容，但推荐使用基类的 move() 等方法
     void setAngle(int angle);
-
-    /**
-     * @brief 平滑转动到指定角度 (可选使用任务或直接阻塞)
-     * 
-     * @param target_angle 目标角度
-     * @param step_delay_ms 每步延迟的毫秒数，控制速度
-     */
     void smoothMove(int target_angle, int step_delay_ms = 15);
 
 private:

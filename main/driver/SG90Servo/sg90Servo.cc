@@ -43,6 +43,9 @@ SG90Servo::SG90Servo(gpio_num_t pin, ledc_channel_t channel, ledc_timer_t timer)
 
     ESP_LOGI(TAG, "SG90 Servo initialized on GPIO %d, Channel %d, Timer %d", pin_, channel_, timer_);
 
+    // 适配 StackChan Servo 基类的角度范围 (例如 0~180度)
+    set_angle_limit(uitk::Vector2i(0, SERVO_MAX_DEGREE));
+
     // 初始化后默认归中 90 度
     setAngle(current_angle_);
 }
@@ -72,6 +75,11 @@ void SG90Servo::setAngle(int angle) {
     ESP_ERROR_CHECK(ledc_update_duty(LEDC_LOW_SPEED_MODE, channel_));
 
     current_angle_ = angle;
+}
+
+// 供 StackChan Motion 调用的底层纯虚函数实现
+void SG90Servo::set_angle_impl(int angle) {
+    setAngle(angle);
 }
 
 void SG90Servo::smoothMove(int target_angle, int step_delay_ms) {

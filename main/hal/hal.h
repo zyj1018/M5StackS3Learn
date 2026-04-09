@@ -10,7 +10,7 @@ extern SG90Servo* servo_x; // 例如：水平方向舵机
 extern SG90Servo* servo_y; // 例如：垂直方向舵机
 
 // 暴露高级 Motion 实例指针
-extern my_stack::motion::Motion* global_motion;
+extern stackchan::motion::Motion* global_motion;
 
 /**
  * @brief MCP 工具注册初始化

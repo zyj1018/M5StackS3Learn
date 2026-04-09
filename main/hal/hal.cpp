@@ -12,7 +12,22 @@ SG90Servo* servo_x = nullptr;
 SG90Servo* servo_y = nullptr;
 
 // 定义高级运动控制器指针
-my_stack::motion::Motion* global_motion = nullptr;
+stackchan::motion::Motion* global_motion = nullptr;
+
+/**
+ * @brief Motion 控制器的后台刷新任务
+ * 
+ * 必须以 50Hz (20ms) 左右的频率调用 global_motion->update()，
+ * 这样基类 Servo 中的 Spring 动画插值引擎才能不断计算出中间角度，并驱动舵机平滑转动。
+ */
+static void motion_update_task(void* arg) {
+    while (1) {
+        if (global_motion) {
+            global_motion->update();
+        }
+        vTaskDelay(pdMS_TO_TICKS(20));
+    }
+}
 
 /**
  * @brief 初始化两路舵机
@@ -24,11 +39,23 @@ static void servo_init() {
     // 两个舵机必须使用不同的 LEDC 通道 (CHANNEL_0 和 CHANNEL_1)。
     servo_x = new SG90Servo(GPIO_NUM_1, LEDC_CHANNEL_0, LEDC_TIMER_0);
     servo_y = new SG90Servo(GPIO_NUM_2, LEDC_CHANNEL_1, LEDC_TIMER_0);
+    
+    // 初始化基类属性
+    servo_x->init();
+    servo_y->init();
+
     ESP_LOGI(TAG, "Servos initialized successfully.");
 
     // 初始化高级运动系统
-    global_motion = new my_stack::motion::Motion(servo_x, servo_y);
+    // std::make_unique<SG90Servo> 不能直接用于包装已有的裸指针，我们用 wrapper 或者直接用原指针管理
+    global_motion = new my_stack::motion::Motion(
+        std::unique_ptr<stackchan::motion::Servo>(servo_x),
+        std::unique_ptr<stackchan::motion::Servo>(servo_y)
+    );
     global_motion->init();
+
+    // 启动 Motion 调度任务
+    xTaskCreate(motion_update_task, "motion_update", 4096, NULL, 5, NULL);
 }
 
 void init() {
