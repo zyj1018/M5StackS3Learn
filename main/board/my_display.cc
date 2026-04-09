@@ -72,6 +72,15 @@ MyDisplay::MyDisplay(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_handle_t 
     if (offset_x != 0 || offset_y != 0) {
         lv_display_set_offset(display_, offset_x, offset_y);
     }
+
+    // ==========================================
+    // 请企鹅入场并设置初始表情
+    // ==========================================
+    if (lvgl_port_lock(0)) {
+        my_avatar = new SmileAvatar(lv_scr_act());
+        my_avatar->setEmotion(AvatarEmotion::PLEASE); // 刚开机，露出期待的表情
+        lvgl_port_unlock();
+    }
 }
 MyDisplay::MyDisplay() {}
 MyDisplay::~MyDisplay() {} 

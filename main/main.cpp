@@ -83,15 +83,7 @@ extern "C" void app_main(void) {
     // Board::GetInstance().GetBacklight()->SetBrightness(100);
 
     // ==========================================
-    // 3. 请企鹅入场
-    // ==========================================
-    lvgl_port_lock(0); // 操作 LVGL 必须加锁
-    my_avatar = new SmileAvatar(lv_scr_act());
-    my_avatar->setEmotion(AvatarEmotion::PLEASE); // 刚开机，露出期待的表情
-    lvgl_port_unlock();
-
-    // ==========================================
-    // 4. 唤醒小智大脑！
+    // 3. 唤醒小智大脑！
     // ==========================================
     ESP_LOGI(TAG, "启动小智大脑中枢...");
     
