@@ -148,6 +148,32 @@ public:
      */
     void lookAtPoint(float x, float y, float z, int speed = 500);
 
+    // ==========================================
+    // 以下为自定义增加的复合动作
+    // ==========================================
+    
+    /**
+     * @brief 设定绝对姿态角度
+     * @param x_angle 左右水平角度 (0~180)
+     * @param y_angle 上下垂直角度 (0~180)
+     */
+    void setPose(int x_angle, int y_angle);
+
+    /**
+     * @brief 动作：点头
+     */
+    void nod();
+
+    /**
+     * @brief 动作：摇头
+     */
+    void shakeHead();
+
+    /**
+     * @brief 动作：环顾四周
+     */
+    void lookAround();
+
     bool isMoving();
     uitk::Vector2i getCurrentAngles();
     int getCurrentYawAngle();

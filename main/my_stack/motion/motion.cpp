@@ -5,6 +5,8 @@
  */
 #include "motion.h"
 #include <cmath>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 
 using namespace uitk;
 using namespace stackchan::motion;
@@ -98,6 +100,54 @@ void Motion::lookAtPoint(float x, float y, float z, int speed)
     int pitch_angle = static_cast<int>(to_degrees(pitch_rad) * 10);
 
     moveWithSpeed(yaw_angle, pitch_angle, speed);
+}
+
+void Motion::setPose(int x_angle, int y_angle) {
+    if (_yaw_servo) _yaw_servo->moveWithSpeed(x_angle, 800);
+    if (_pitch_servo) _pitch_servo->moveWithSpeed(y_angle, 800);
+}
+
+void Motion::nod() {
+    if (_pitch_servo) {
+        // 假设 90 是平视，60 是低头
+        _pitch_servo->moveWithSpeed(60, 600); // 低头
+        vTaskDelay(pdMS_TO_TICKS(300));
+        _pitch_servo->moveWithSpeed(90, 600); // 抬起
+        vTaskDelay(pdMS_TO_TICKS(300));
+        _pitch_servo->moveWithSpeed(60, 600); // 低头
+        vTaskDelay(pdMS_TO_TICKS(300));
+        _pitch_servo->moveWithSpeed(90, 600); // 抬起
+    }
+}
+
+void Motion::shakeHead() {
+    if (_yaw_servo) {
+        // 假设 90 是正视，60 是左，120 是右
+        _yaw_servo->moveWithSpeed(60, 600);
+        vTaskDelay(pdMS_TO_TICKS(300));
+        _yaw_servo->moveWithSpeed(120, 600);
+        vTaskDelay(pdMS_TO_TICKS(300));
+        _yaw_servo->moveWithSpeed(60, 600);
+        vTaskDelay(pdMS_TO_TICKS(300));
+        _yaw_servo->moveWithSpeed(90, 600); // 归位
+    }
+}
+
+void Motion::lookAround() {
+    if (_yaw_servo && _pitch_servo) {
+        // 左上看
+        _yaw_servo->moveWithSpeed(45, 500);
+        _pitch_servo->moveWithSpeed(120, 500);
+        vTaskDelay(pdMS_TO_TICKS(800));
+        
+        // 右下看
+        _yaw_servo->moveWithSpeed(135, 500);
+        _pitch_servo->moveWithSpeed(60, 500);
+        vTaskDelay(pdMS_TO_TICKS(800));
+        
+        // 归中
+        setPose(90, 90);
+    }
 }
 
 bool Motion::isMoving()
