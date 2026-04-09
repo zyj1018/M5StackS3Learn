@@ -7,8 +7,8 @@
 // 引入官方的 LVGL 移植层
 #include "lvgl.h"
 #include "esp_lvgl_port.h"
-// 你自己的 UI
-#include "ui/SmileAvatar.h"
+#include "app/app_manager.h"
+#include "app/penguin_app.h"
 
 // 引入小智的大脑与硬件配置
 #include "application.h"
@@ -18,10 +18,6 @@
 #include "hal/hal.h"
 
 static const char* TAG = "MAIN";
-
-// 🌟 核心：全局企鹅对象。
-// 注意这里绝对不能加 static！因为 m5stack_core_s3.cc 里的代理屏幕需要用 extern 找到它
-SmileAvatar* my_avatar = nullptr;
 
 extern "C" void app_main(void) {
     ESP_LOGI(TAG, "=== Penguin's Ant Robot Booting ===");
@@ -38,7 +34,9 @@ extern "C" void app_main(void) {
     // 2. 唤醒小智大脑！
     // ==========================================
     ESP_LOGI(TAG, "启动小智大脑中枢...");
-    
+
+    AppManager::GetInstance().startApp(new PenguinApp());
+
     // 当它的状态改变时，会去调用我们的 AvatarBridgeDisplay，从而改变 my_avatar 的表情！
     Application::GetInstance().Start();
 
