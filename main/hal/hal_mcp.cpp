@@ -22,18 +22,17 @@ void xiaozhi_mcp_init() {
     // 工具 1：控制机器人做复合动作 (利用 Motion 类)
     // ---------------------------------------------------------
     PropertyList perform_motion_props;
-    perform_motion_props.properties_.push_back(Property{"action", "string", "动作类型，必须是以下之一: 'nod' (点头), 'shakeHead' (摇头), 'lookAround' (环顾四周)"});
+    perform_motion_props.AddProperty(Property("action", kPropertyTypeString));
     
     mcp_server.AddTool("perform_motion",
-        "控制机器人执行预设的高级复合动作",
+        "控制机器人执行预设的高级复合动作。参数 action 必须是: 'nod', 'shakeHead', 'lookAround'",
         perform_motion_props,
         [](const PropertyList& args) -> ReturnValue {
             std::string action = "";
-            for (const auto& arg : args.properties_) {
-                if (arg.name == "action") {
-                    action = arg.value;
-                    break;
-                }
+            try {
+                action = args["action"].value<std::string>();
+            } catch (const std::exception& e) {
+                return std::string("{\"status\":\"error\", \"message\":\"Missing 'action' parameter\"}");
             }
 
             if (action.empty()) {
@@ -61,22 +60,21 @@ void xiaozhi_mcp_init() {
     // 工具 2：精确控制舵机角度
     // ---------------------------------------------------------
     PropertyList set_servo_pose_props;
-    set_servo_pose_props.properties_.push_back(Property{"x_angle", "integer", "水平旋转角度，0 到 180 之间的整数（90为正前方平视）"});
-    set_servo_pose_props.properties_.push_back(Property{"y_angle", "integer", "垂直旋转角度，0 到 180 之间的整数（90为平视）"});
+    set_servo_pose_props.AddProperty(Property("x_angle", kPropertyTypeInteger, 0, 180));
+    set_servo_pose_props.AddProperty(Property("y_angle", kPropertyTypeInteger, 0, 180));
 
     mcp_server.AddTool("set_servo_pose",
-        "控制机器人头部的精确角度",
+        "控制机器人头部的精确角度, 90为正前方平视",
         set_servo_pose_props,
         [](const PropertyList& args) -> ReturnValue {
             int x_angle = -1;
             int y_angle = -1;
             
-            for (const auto& arg : args.properties_) {
-                if (arg.name == "x_angle") {
-                    x_angle = std::stoi(arg.value);
-                } else if (arg.name == "y_angle") {
-                    y_angle = std::stoi(arg.value);
-                }
+            try {
+                x_angle = args["x_angle"].value<int>();
+                y_angle = args["y_angle"].value<int>();
+            } catch (const std::exception& e) {
+                return std::string("{\"status\":\"error\", \"message\":\"Missing or invalid 'x_angle' or 'y_angle' parameter\"}");
             }
             
             // 假设默认返回值为 0 表示未获取到（如果小智底层没有默认返回处理，这步可根据需求简化）
