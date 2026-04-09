@@ -14,7 +14,7 @@ SG90Servo* servo_x = nullptr;
 SG90Servo* servo_y = nullptr;
 
 // 定义高级运动控制器指针
-stackchan::motion::Motion* global_motion = nullptr;
+::stackchan::motion::Motion* global_motion = nullptr;
 
 /**
  * @brief Motion 控制器的后台刷新任务
@@ -50,9 +50,9 @@ static void servo_init() {
 
     // 初始化高级运动系统
     // std::make_unique<SG90Servo> 不能直接用于包装已有的裸指针，我们用 wrapper 或者直接用原指针管理
-    global_motion = new stackchan::motion::Motion(
-        std::unique_ptr<stackchan::motion::Servo>(servo_x),
-        std::unique_ptr<stackchan::motion::Servo>(servo_y)
+    global_motion = new ::stackchan::motion::Motion(
+        std::unique_ptr<::stackchan::motion::Servo>(servo_x),
+        std::unique_ptr<::stackchan::motion::Servo>(servo_y)
     );
     global_motion->init();
 

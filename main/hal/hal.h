@@ -3,6 +3,13 @@
 #include "sg90Servo.h"
 #include "my_stack/motion/motion.h"
 
+// 将前置声明放在全局命名空间，而不是 HAL 内部
+namespace stackchan {
+namespace motion {
+class Motion;
+}
+}
+
 namespace HAL {
 
 // 暴露全局的舵机控制指针，以便在其它文件 (如 my_display.cc 或 application.cc) 中直接调用
@@ -10,12 +17,7 @@ extern SG90Servo* servo_x; // 例如：水平方向舵机
 extern SG90Servo* servo_y; // 例如：垂直方向舵机
 
 // 暴露高级 Motion 实例指针
-namespace stackchan {
-namespace motion {
-class Motion;
-}
-}
-extern stackchan::motion::Motion* global_motion;
+extern ::stackchan::motion::Motion* global_motion;
 
 /**
  * @brief MCP 工具注册初始化
