@@ -17,6 +17,8 @@
 #include "board.h"
 #include "config.h" // 包含 DISPLAY_WIDTH 等宏定义
 
+#include "hal/hal.h"
+
 static const char* TAG = "MAIN";
 
 // 🌟 核心：全局企鹅对象。
@@ -30,14 +32,9 @@ extern esp_lcd_panel_handle_t global_panel;
 extern "C" void app_main(void) {
     ESP_LOGI(TAG, "=== Penguin's Ant Robot Booting ===");
 // ==========================================
-    // 🌟 第一步：必须最先初始化 NVS (Flash)！
-    // ==========================================
-    esp_err_t ret = nvs_flash_init();
-    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
-        ESP_ERROR_CHECK(nvs_flash_erase());
-        ret = nvs_flash_init();
-    }
-    ESP_ERROR_CHECK(ret);
+    // 🌟 第一步：硬件抽象层及基础服务初始化
+// ==========================================
+    HAL::init();
     // ==========================================
     // 1. 小智硬件底座全面接管 (电源、音频、触摸、SPI 屏幕总线)
     // ==========================================

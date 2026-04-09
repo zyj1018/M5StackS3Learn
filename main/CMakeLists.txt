@@ -5,6 +5,8 @@ set(XIAOZHI_MAIN_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../xiaozhi-esp32/main")
 # 2. 收集我们企鹅机器人自己的源文件
 set(PENGUIN_SOURCES
     "main.cpp"
+    "hal/hal.cpp"
+    "driver/SG90Servo/sg90Servo.cc"
     "board/m5stack_core_s3.cc"
     "board/cores3_audio_codec.cc"
     "board/my_display.cc"
@@ -62,6 +64,8 @@ set(MY_INCLUDE_DIRS
     "." 
     "ui" 
     "board"
+    "hal"
+    "driver/SG90Servo"
 )
 set(XIAOZHI_INCLUDE_DIRS "." "display" "display/lvgl_display" "display/lvgl_display/jpg" "audio" "protocols")
 
