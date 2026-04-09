@@ -2,6 +2,8 @@
 #include <esp_log.h>
 #include <nvs.h>
 #include <nvs_flash.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 
 static const char* TAG = "HAL";
 
@@ -48,7 +50,7 @@ static void servo_init() {
 
     // 初始化高级运动系统
     // std::make_unique<SG90Servo> 不能直接用于包装已有的裸指针，我们用 wrapper 或者直接用原指针管理
-    global_motion = new my_stack::motion::Motion(
+    global_motion = new stackchan::motion::Motion(
         std::unique_ptr<stackchan::motion::Servo>(servo_x),
         std::unique_ptr<stackchan::motion::Servo>(servo_y)
     );
