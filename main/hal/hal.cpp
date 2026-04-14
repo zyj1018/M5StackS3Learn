@@ -14,7 +14,7 @@ SG90Servo* servo_x = nullptr;
 SG90Servo* servo_y = nullptr;
 
 // 定义高级运动控制器指针
-::stackchan::motion::Motion* global_motion = nullptr;
+stackchan::motion::Motion* global_motion = nullptr;
 
 /**
  * @brief Motion 控制器的后台刷新任务
@@ -39,7 +39,7 @@ static void servo_init() {
     // 注意：这里的 GPIO 引脚 (GPIO_NUM_1 和 GPIO_NUM_2) 仅为示例。
     // 请根据你 CoreS3 实际连接的扩展引脚 (如 PORT B 或 PORT C) 进行修改。
     // 两个舵机必须使用不同的 LEDC 通道 (CHANNEL_0 和 CHANNEL_1)。
-    servo_x = new SG90Servo(GPIO_NUM_1, LEDC_CHANNEL_0, LEDC_TIMER_0);
+    servo_x = new SG90Servo(GPIO_NUM_9, LEDC_CHANNEL_0, LEDC_TIMER_0);
     servo_y = new SG90Servo(GPIO_NUM_2, LEDC_CHANNEL_1, LEDC_TIMER_0);
     
     // 初始化基类属性
@@ -55,7 +55,7 @@ static void servo_init() {
         std::unique_ptr<::stackchan::motion::Servo>(servo_y)
     );
     global_motion->init();
-
+    
     // 启动 Motion 调度任务
     xTaskCreate(motion_update_task, "motion_update", 4096, NULL, 5, NULL);
 }
