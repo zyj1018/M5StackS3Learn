@@ -25,15 +25,12 @@ private:
     virtual bool Lock(int timeout_ms = 0) override;
     virtual void Unlock() override;
 
-    // void SetupUI_128x64();
-    // void SetupUI_128x32();
-
 public:
     MyDisplay(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_handle_t panel,
                                                int width, int height, int offset_x, int offset_y, bool mirror_x,
                                                bool mirror_y, bool swap_xy);
     MyDisplay();
-    ~MyDisplay();
+    virtual ~MyDisplay();
 
     virtual void SetChatMessage(const char* role, const char* content) override;
     virtual void SetEmotion(const char* emotion) override;
