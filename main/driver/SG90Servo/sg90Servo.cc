@@ -79,6 +79,7 @@ void SG90Servo::setAngle(int angle) {
 
 // 供 StackChan Motion 调用的底层纯虚函数实现
 void SG90Servo::set_angle_impl(int angle) {
+    // ESP_LOGD(TAG, "set_angle_impl: %d", angle);
     setAngle(angle);
 }
 

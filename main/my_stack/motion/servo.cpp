@@ -5,6 +5,9 @@
  */
 #include "servo.h"
 #include <esp_timer.h>
+#include <esp_log.h>
+
+static const char* TAG = "Servo";
 
 using namespace uitk;
 
@@ -47,6 +50,7 @@ void Servo::update()
         return;
     }
     _last_tick = get_millis();
+    // ESP_LOGI(TAG, "update: %d", getCurrentAngle());
 
     // Apply animation
     if (!_angle_anim.done()) {
