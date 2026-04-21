@@ -29,15 +29,18 @@ extern "C" void app_main(void) {
     // 1. 小智硬件底座全面接管 (电源、音频、触摸、SPI 屏幕总线)
     // ==========================================
     Board& board = Board::GetInstance();
-
-// ==========================================
-    // 2. 唤醒小智大脑！
+    board.Initialize(); // 显式调用 Initialize 初始化屏幕与 LVGL
+    
     // ==========================================
-    ESP_LOGI(TAG, "启动小智大脑中枢...");
-
+    // 2. 初始化 AppManager 并启动默认 App
+    // ==========================================
+    ESP_LOGI(TAG, "启动应用管理器...");
     AppManager::GetInstance().startApp(new PenguinApp());
 
-    // 当它的状态改变时，会去调用我们的 AvatarBridgeDisplay，从而改变 my_avatar 的表情！
+    // ==========================================
+    // 3. 唤醒小智大脑！
+    // ==========================================
+    ESP_LOGI(TAG, "启动小智大脑中枢...");
     Application::GetInstance().Start();
 
     // app_main 到这里就可以结束了，LVGL 的渲染和小智的逻辑都会在它们各自的后台 Task 里跑
