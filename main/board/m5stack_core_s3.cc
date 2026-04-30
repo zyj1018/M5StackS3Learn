@@ -24,9 +24,10 @@
 // 声明全局企鹅指针（将在 main.cpp 中被实例化）
 extern SmileAvatar* my_avatar; 
 
-// 🌟 核心：接收从 m5stack_core_s3.cc 透传过来的真实屏幕句柄
-esp_lcd_panel_io_handle_t global_panel_io =  NULL;
-esp_lcd_panel_handle_t global_panel = NULL;
+    // 🌟 核心：接收从 m5stack_core_s3.cc 透传过来的真实屏幕句柄
+    // 已经移入 MyDisplay 内部管理，这些全局变量不再需要
+    // esp_lcd_panel_io_handle_t global_panel_io =  NULL;
+    // esp_lcd_panel_handle_t global_panel = NULL;
 // ==========================================
 // 🌟 核心魔法：创建一个代理屏幕，拦截小智的所有绘制指令
 // ==========================================
